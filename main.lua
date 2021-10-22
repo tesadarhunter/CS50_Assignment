@@ -52,6 +52,25 @@
     make mode and level menu and written draft of comMode(AI) code 
     not sure this code working properly
     please check !
+	
+	day 3 re-update
+	make more detiled AI desctiption of comMode(AI) code
+	
+	day 4 re-update
+	easy update for AI mode
+
+    day 5 re-update
+    keep going level 1 and 2 update of AI mode    
+    check comple error and finish 
+
+    current progress :
+    main menu prints works fine but selection function is not working (solve)    
+    AI movement is nothing (code correction is needed)
+    
+    
+    player controler is not working (solve)
+    update function or key checking is failed (solve)
+    
 
 
 ]]
@@ -72,12 +91,12 @@ Class = require 'class'
 
 -- our Paddle class, which stores position and dimensions for each Paddle
 -- and the logic for rendering them
-require 'Paddle'
+--require 'Paddle'
 
 -- make two types of paddle class. 1. player, 2. com 
---require 'Player'
+require 'Player'
 
---require 'ComMode'
+require 'ComMode'
 
 -- our Ball class, which isn't much different than a Paddle structure-wise
 -- but which will mechanically function very differently
@@ -135,8 +154,36 @@ function love.load()
 
     -- initialize our player paddles; make them global so that they can be
     -- detected by other functions and modules
-    player1 = Paddle(10, 30, 5, 20)
-    player2 = Paddle(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	
+	-- loading all classes of paddle control
+	
+	player1 = Player(10, 30, 5, 20)
+	player2 = Player(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	
+	computer1 = ComMode(10, 30, 5, 20)
+	computer2 = ComMode(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	
+		
+	--After modeselect scene, we will use this code lines
+	
+	--Player vs Player mode
+	--if playModes == playModes[1] then
+	--	player1 = Paddle(10, 30, 5, 20)
+	--	player2 = Paddle(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	--end
+	--Player vs Com
+	--if playModes == playModes[2] then
+	--	player1 = Player(10, 30, 5, 20)
+	--	player2 = ComMode(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	--end
+	
+	--Com vs Player
+	--if playModes == playModes[3] then
+	--	player1 = ComMode(10, 30, 5, 20)
+	--	player2 = ComMode(VIRTUAL_WIDTH - 10, VIRTUAL_HEIGHT - 30, 5, 20)
+	--end
+	
+	
 
     -- place a ball in the middle of the screen
     ball = Ball(VIRTUAL_WIDTH / 2 - 2, VIRTUAL_HEIGHT / 2 - 2, 4, 4)
@@ -144,9 +191,13 @@ function love.load()
     -- initialize score variables
     player1Score = 0
     player2Score = 0
+	computer1Score = 0
+	computer2Score = 0
 
     -- either going to be 1 or 2; whomever is scored on gets to serve the
     -- following turn
+	-- this number is related to only right or left paddle position
+	-- so it's don't need to make other argument for computer 1 and 2
     servingPlayer = 1
 
     -- player who won the game; not set to a proper value until we reach
@@ -159,10 +210,10 @@ function love.load()
     -- 3. 'play' (the ball is in play, bouncing between paddles)
     -- 4. 'done' (the game is over, with a victor, ready for restart)
     -- 5. 'menu' (select pvp or player vs com mode at the beginning) -- add for assignment
-    -- 6. 'level' (select level of AI) -- add for assignment
+    -- 6. 'levelSelect' (select level of AI) -- add for assignment
     gameState = 'start'
-
-    -- the state of play mode;
+	
+	-- the state of play mode;
     -- 1. 'player vs player'
     -- 2. 'player vs com'
     -- 3. 'com vs com'
@@ -170,7 +221,9 @@ function love.load()
 
     --carefull! lua table start numbering 1
     playModes = {'Player vs Player', 'Player vs Com', 'Com vs Com'}
-    currentMode = playModes[1]
+    currentModeNum = 1
+    currentMode = playModes[currentModeNum]
+    
 
     -- the levels of computer AI
     -- 1. '1'
@@ -178,7 +231,20 @@ function love.load()
     -- 3. 'hell'
 
     aiLevels = {'1', '2' , 'Hell'}
-    currentLevel = aiLevels[1]
+    currentLevelNum = 1
+    currentLevel = aiLevels[currentLevelNum]
+	
+	-- Initialize Avtive paddle state for update function, 
+	player1Active = false
+	player2Active = false
+	computer1Active = false
+	computer2Active = false
+	
+   --  some variables related AI paddle movement
+   desireHeight = 1
+   desireVelocity = 0
+   desireTime = 0
+   --balliniHeight = VIRTUAL_HEIGHT / 2 - 2 -- always ball start at center
 
 end
 
@@ -200,7 +266,17 @@ end
     changes we make will be applied as fast as possible and will vary
     across system hardware.
 ]]
+
 function love.update(dt)
+ --[[ 
+	update 2021 - 10 - 20, 
+	in play state , we check level (TBD) and mode state.
+	1. check mode (PVP or Player vs Com)
+	2. player 2 determined at initial love.load();
+    problem 
+    update function totally ruined make sure all parameters
+    ]]
+
     if gameState == 'serve' then
         -- before switching to play, initialize ball's velocity based
         -- on player who last scored
@@ -210,37 +286,95 @@ function love.update(dt)
         else
             ball.dx = -math.random(140, 200)
         end
-    elseif gameState == 'play' then
+        
+       
+        -- controler activation after modeselect (i.e. servemode)
+        
+        if currentMode == 'Player vs Player' then
+            player1Active = true
+            player2Active = true
+        elseif currentMode == 'Player vs Com' then
+            player1Active = true
+            computer2Active = true
+        elseif currentMode == 'Com vs Com' then
+            computer1Active = true
+            computer2Active = true
+        end
+    end
+
+    if gameState == 'play' then
         -- detect ball collision with paddles, reversing dx if true and
         -- slightly increasing it, then altering the dy based on the position
         -- at which it collided, then playing a sound effect
-        if ball:collides(player1) then
-            ball.dx = -ball.dx * 1.03
-            ball.x = player1.x + 5
+		
+		-- ball acting for player paddles
+		if player1Active == true then
+		    if ball:collides(player1) then
+				ball.dx = -ball.dx * 1.03
+				ball.x = player1.x + 5
 
-            -- keep velocity going in the same direction, but randomize it
-            if ball.dy < 0 then
-                ball.dy = -math.random(10, 150)
-            else
-                ball.dy = math.random(10, 150)
-            end
+                -- keep velocity going in the same direction, but randomize it
+				if ball.dy < 0 then
+					ball.dy = -math.random(10, 150)
+				else
+					ball.dy = math.random(10, 150)
+				end
 
-            sounds['paddle_hit']:play()
-        end
-        if ball:collides(player2) then
-            ball.dx = -ball.dx * 1.03
-            ball.x = player2.x - 4
+				sounds['paddle_hit']:play()
+			end
+		end
+		
+		if player2Active == true then
+		    if ball:collides(player2) then
+				ball.dx = -ball.dx * 1.03
+				ball.x = player2.x - 4
 
-            -- keep velocity going in the same direction, but randomize it
-            if ball.dy < 0 then
-                ball.dy = -math.random(10, 150)
-            else
-                ball.dy = math.random(10, 150)
-            end
+                if ball.dy < 0 then
+					ball.dy = -math.random(10, 150)
+				else
+					ball.dy = math.random(10, 150)
+				end
 
-            sounds['paddle_hit']:play()
-        end
+				sounds['paddle_hit']:play()
+			end
+		end
+		
+		
+		-- ball refracting at computer paddles boundary
+        
+		if computer1Active == true then
+			 if ball:collides(computer1) then
+				ball.dx = -ball.dx * 1.03
+				ball.x = computer1.x + 5
 
+            
+				if ball.dy < 0 then
+					ball.dy = -math.random(10, 150)
+				else
+					ball.dy = math.random(10, 150)
+				end
+
+				sounds['paddle_hit']:play()
+			end
+		end
+		
+		if computer2Active == true then
+		    if ball:collides(computer2) then
+				ball.dx = -ball.dx * 1.03
+				ball.x = computer2.x - 4
+
+				
+				if ball.dy < 0 then
+					ball.dy = -math.random(10, 150)
+				else
+					ball.dy = math.random(10, 150)
+				end
+
+				sounds['paddle_hit']:play()
+			end
+		end
+		
+		
         -- detect upper and lower screen boundary collision, playing a sound
         -- effect and reversing dy if true
         if ball.y <= 0 then
@@ -260,12 +394,19 @@ function love.update(dt)
         -- and update the score and serving player
         if ball.x < 0 then
             servingPlayer = 1
-            player2Score = player2Score + 1
+			
+			if player2Active == true then
+				player2Score = player2Score + 1
+			end
+			if computer2Active == true then
+			    computer2Score = computer2Score + 1
+			end
             sounds['score']:play()
 
             -- if we've reached a score of 10, the game is over; set the
             -- state to done so we can show the victory message
-            if player2Score == 10 then
+			
+            if player2Score == 10 or computer2Score == 10 then
                 winningPlayer = 2
                 gameState = 'done'
             else
@@ -274,13 +415,22 @@ function love.update(dt)
                 ball:reset()
             end
         end
-
+        
+        
+        --ball score condition
         if ball.x > VIRTUAL_WIDTH then
             servingPlayer = 2
-            player1Score = player1Score + 1
+			if player1Active == true then			
+				player1Score = player1Score + 1
+			end
+			
+		    if computer1Active == true then
+				computer1Score = computer1Score + 1
+			end
+			
             sounds['score']:play()
 
-            if player1Score == 10 then
+            if player1Score == 10 or computer1Score == 10 then
                 winningPlayer = 1
                 gameState = 'done'
             else
@@ -288,39 +438,145 @@ function love.update(dt)
                 ball:reset()
             end
         end
+
+       
+
+		
     end
 
     --
     -- paddles can move no matter what state we're in
     --
-    -- player 1
-    if love.keyboard.isDown('w') then
-        player1.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('s') then
-        player1.dy = PADDLE_SPEED
-    else
-        player1.dy = 0
-    end
+    -- player 1 
+    
+	if player1Active == true then
+		if love.keyboard.isDown('w') then
+			player1.dy = -PADDLE_SPEED
+		elseif love.keyboard.isDown('s') then
+			player1.dy = PADDLE_SPEED
+		else
+			player1.dy = 0
+		end
+	end
 
     -- player 2
-    if love.keyboard.isDown('up') then
-        player2.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('down') then
-        player2.dy = PADDLE_SPEED
-    else
-        player2.dy = 0
-    end
+	
+	if player2Active == true then
+	    if love.keyboard.isDown('up') then
+			player2.dy = -PADDLE_SPEED
+		elseif love.keyboard.isDown('down') then
+			player2.dy = PADDLE_SPEED
+		else
+			player2.dy = 0
+		end
+	end
 
+    --
+    -- now add main AI movements (comMode)
+    --
+    
+    -- AI level : Hell 
+    -- we'll use comMove:velocitycalc which determine for speed of comMode paddle.
+    -- velocitycalc calculate paddle desireheight , desireTime and desireVelocity 
+   
     -- update our ball based on its DX and DY only if we're in play state;
     -- scale the velocity by dt so movement is framerate-independent
-    if gameState == 'play' then
+    if gameState == 'play' then       
         ball:update(dt)
     end
 
-    player1:update(dt)
-    player2:update(dt)
-end
+    -- usage ComMode:velocitycalc(ball, height, width, desireHeight, desireVelocity, desireTime)
+    -- 
+    if gameState == 'play' then         
+         if computer1Active == true then
+            --computer1:velocitycalc(ball, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, desireHeight, desireVelocity, desireTime)
+            --calculate manually in main function (SADGE)
+            
+            if ball.dx > 0 then
+                desireTime = math.abs((VIRTUAL_WIDTH - ball.x) / ball.dx)
+            elseif ball.dx < 0 then
+                desireTime = math.abs(ball.x / ball.dx)
+            elseif ball.dx == 0 then --strange condition for experiment
+                desireTime = 50
+            end
+            
+           --desireHeight (height approaching ball)
+            desireHeight = ball.dy * desireTime + ball.y -- not complete, should consider refraction of top and bottom 
+            desireVelocity = (desireHeight - computer1.y) / desireTime
+        
+           if desireHeight < 0 then
+                desireHeight = math.abs(ball.dy * desireTime + ball.y)
+                desireVelocity = math.abs(ball.dy + ball.y / desireTime) - computer1.y * desireTime
+           end 
+        
+           if desireHeight > VIRTUAL_HEIGHT then
+                desireHeight = VIRTUAL_HEIGHT-(ball.dy * desireTime + ball.y - VIRTUAL_HEIGHT)
+                desireVelocity = 2 * VIRTUAL_HEIGHT * desireTime - ball.dy - ball.y * desireTime - computer1.y * desireTime
+           end
+            computer1.dy = desireVelocity
+        end
 
+        if computer2Active == true then
+            --computer2:velocitycalc(ball, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, desireHeight, desireVelocity, desireTime)
+            --calculate manually in main function (SADGE)
+                
+                if ball.dx > 0 then
+                    desireTime = math.abs((VIRTUAL_WIDTH - ball.x) / ball.dx)
+                elseif ball.dx < 0 then
+                    desireTime = math.abs(ball.x / ball.dx)
+                elseif ball.dx == 0 then  --strange condition for experiment
+                    desireTime = 50
+                end
+                
+               --desireHeight (height approaching ball)
+                desireHeight = ball.dy * desireTime + ball.y -- not complete, should consider refraction of top and bottom 
+                desireVelocity = (desireHeight - computer2.y) / desireTime
+            
+               if desireHeight < 0 then
+                    desireHeight = math.abs(ball.dy * desireTime + ball.y)
+                    desireVelocity = math.abs(ball.dy + ball.y / desireTime) - computer2.y * desireTime
+               end 
+            
+               if desireHeight > VIRTUAL_HEIGHT then
+                    desireHeight = VIRTUAL_HEIGHT-(ball.dy * desireTime + ball.y - VIRTUAL_HEIGHT)
+                    desireVelocity = 2 * VIRTUAL_HEIGHT * desireTime - ball.dy - ball.y * desireTime - computer2.y * desireTime
+               end
+            computer2.dy = desireVelocity
+        end
+
+    end 
+
+	-- contained moving limitation (wall boundary condition)
+	if player1Active == true then
+		player1:update(dt)
+	end
+	 
+	if player2Active == true then
+		player2:update(dt)
+	end
+	
+	if computer1Active == true then
+		computer1:update(dt)
+	end
+	
+	if computer2Active == true then
+	    computer2:update(dt)
+	end
+	
+	-- end of player vs player mode
+	
+	
+	-- start player vs com mode
+	-- making AI movement for level 1 or level2 should check require comMode and Player Class
+	-- instead of Paddle class.
+    
+    -- update mode selection
+	currentMode = playModes[currentModeNum]
+    currentLevel = aiLevels[currentLevelNum]
+
+    
+end
+	
 --[[
     A callback that processes key strokes as they happen, just the once.
     Does not account for keys that are held down, which is handled by a
@@ -339,11 +595,15 @@ function love.keypressed(key)
             gameState = 'menu'            
             --gameState = 'serve'
         elseif gameState == 'menu' then
-            --gameState = 'play'
-              gameState = 'level'
-        elseif gameState == 'level'
+            --gameState = 'play' 
+            if currentMode ==  'Player vs Com' or currentMode == 'Com vs Com' then
+                gameState = 'levelSelect'              
+            else
+                gameState = 'serve'
+            end
+        elseif gameState == 'levelSelect' then
               gameState = 'serve'
-        elseif gameState = 'serve'
+        elseif gameState == 'serve' then
               gameState = 'play'    
         elseif gameState == 'done' then
             -- game is simply in a restart phase here, but will set the serving
@@ -356,7 +616,10 @@ function love.keypressed(key)
             -- reset scores to 0
             player1Score = 0
             player2Score = 0
-
+			
+			computer1Score = 0
+			computer2Score = 0
+            
             -- decide serving player as the opposite of who won
             if winningPlayer == 1 then
                 servingPlayer = 2
@@ -365,20 +628,40 @@ function love.keypressed(key)
             end
         end
     end
-end
-
---[[new function for menu,level selection. release some key]]
-function love.keyreleased(key)
     if key == 'up' then 
-        currentMode = currentMode -1
-        if currentMode < -1 then
-            currentMode = #playModes[currentMode]
+        if gameState == 'menu' then
+            currentModeNum = currentModeNum -1
+            if currentModeNum < 1 then
+                currentModeNum = 1
+            end
+        end
+
+        if gameState == 'levelSelect' then
+            currentLevelNum = currentLevelNum -1
+            if currentLevelNum < 1 then
+                currentLevelNum = 1
+            end
         end
     end
+    --[[new function for menu,level selection. release some key]]
+    if key == 'down' then
+        if gameState == 'menu' then            
+            currentModeNum = currentModeNum +1
+            if currentModeNum > 3 then
+                currentModeNum = #playModes
+            end
+        end
 
-
-
+        if gameState == 'levelSelect' then
+            currentLevelNum = currentLevelNum + 1
+            if currentLevelNum > 3 then
+                currentLevelNum = #aiLevels
+            end
+        end
+    end
+   
 end
+
 
 --[[
     Called each frame after update; is responsible simply for
@@ -388,7 +671,7 @@ function love.draw()
     -- begin drawing with push, in our virtual resolution
     push:start()
 
-        
+       
     --before love2d ver 11
     --love.graphics.clear(40, 45, 52, 255)
     
@@ -419,28 +702,46 @@ function love.draw()
         love.graphics.printf('Press Enter to restart!', 0, 30, VIRTUAL_WIDTH, 'center')
     end
 
-    if gameState == 'menu' then
-       
+    if gameState == 'menu' then       
         displayMenu()
-
     end
-
     
-    if gameState == 'level' then
-       
+    if gameState == 'levelSelect' then       
         displayLevel()
-
     end
 
     -- show the score before ball is rendered so it can move over the text
     displayScore()
     
-    player1:render()
-    player2:render()
+    if player1Active == true then
+        player1:render()
+    end
+    if player2Active == true then
+        player2:render()
+    end
+
+    if computer1Active == true then
+        computer1:render()
+    end
+    if computer2Active == true then
+        computer2:render()
+    end
+
     ball:render()
 
     -- display FPS for debugging; simply comment out to remove
     displayFPS()
+
+
+    --check current mode
+    --love.graphics.printf(gameState .. currentMode ..  currentLevel, 0, 20, VIRTUAL_WIDTH/2, 'center')
+
+    -- check variables of computer paddle
+    --[[
+    love.graphics.printf('desireVelocity : ' .. tostring(desireVelocity), 0, 20, VIRTUAL_WIDTH/2, 'center')
+    love.graphics.printf('desireTime : ' .. tostring(desireTime), 0, 35, VIRTUAL_WIDTH/2, 'center')
+    love.graphics.printf('desireHeight : ' .. tostring(desireHeight), 0, 50, VIRTUAL_WIDTH/2, 'center')
+    ]]
 
     -- end our drawing to push
     push:finish()
@@ -471,22 +772,23 @@ end
 
 function displayMenu()
     -- display menu 
-    love.graphics.setFont(LargeFont)
-    love.graphic.print('select play mode menu with up and down keys', 30, 30) -- position is determine some arbitery value
+    love.graphics.setFont(smallFont)
+    -- position is determined some arbitery value
+    love.graphics.print('select play mode menu with up and down keys and press enter after your choice', VIRTUAL_WIDTH/2 -180 , 30) 
     for i = 1, #playModes do
-        love.graphic.print(playModes[i])
+        love.graphics.print(playModes[i], VIRTUAL_WIDTH/2 - 30, 30 + 10 * i )
     end
-    love.graphci.print('select menu is: ' .. currentMode, 50, 50) -- position is determine some arbitery value
+    love.graphics.print('select menu is :  ' .. currentMode, VIRTUAL_WIDTH/2 - 75 , 150) 
 
 end
 
 function displayLevel()
     -- display level 
-    love.graphics.setFont(LargeFont)
-    love.graphic.print('select Level with up and down keys', 30, 30) -- position is determine some arbitery value
+    love.graphics.setFont(smallFont)
+    love.graphics.print('select Level with up and down keys', VIRTUAL_WIDTH/2 -75 , 30) 
     for i = 1, #aiLevels do
-        love.graphic.print(playModes[i])
+        love.graphics.print(aiLevels[i], VIRTUAL_WIDTH/2 - 30, 30 + 10 * i)
     end
-    love.graphci.print('select level is : ' .. currentMode, 50, 50) -- position is determine some arbitery value
+    love.graphics.print('select level is :  ' .. currentLevel, VIRTUAL_WIDTH/2 - 75, 150) 
 
 end
